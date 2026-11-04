@@ -1,0 +1,47 @@
+# Docs drift guard — fails a PR when docs/ has unmarked placeholders, broken links,
+# or cites file paths that don't exist. Installed by ai-docs `scripts/install.sh --ci`.
+name: docs-check
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "AGENTS.md"
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.go"
+      - "package.json"
+      - "pyproject.toml"
+      - "requirements*.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip when the repo has no ai-docs structure yet
+        id: guard
+        run: |
+          if [ -f docs/AGENTS.md ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Verify docs
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          SCRIPT=.claude/skills/ai-docs/scripts/verify_docs.py
+          if [ ! -f "$SCRIPT" ]; then
+            git clone --depth 1 https://github.com/harshhsahu/ai-template-.git /tmp/ai-docs
+            SCRIPT=/tmp/ai-docs/scripts/verify_docs.py
+          fi
+          python3 "$SCRIPT" .
