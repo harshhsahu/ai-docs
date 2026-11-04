@@ -30,7 +30,7 @@ Three specific traps:
 - **Convention assumed as fact.** Django REST routers *usually* expose six endpoints, but
   `http_method_names` or a read-only viewset changes that. Read the viewset.
 - **Template text left standing as a claim.** The templates contain example prose (the ten
-  rules, "Mock-first V1 → real backend integration", `{{ID_A}} → Proxy company.id`). That
+  rules, "Mock-first V1 → real backend integration", `{{ID_A}} → billing companies.id`). That
   text is illustrative. If you leave it in place it reads as a claim about this project.
   Either replace it with the project's reality or mark it.
 
