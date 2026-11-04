@@ -1,58 +1,68 @@
-# Product Template
+# ai-docs — make every repo AI-ready
 
-A reusable scaffold for spinning up a **new product** with the same documentation
-structure, conventions, and agent guardrails that power ViaSocket Mission Control.
+A skill for AI coding agents (Claude Code, and anything that reads `AGENTS.md`) that turns a
+codebase into one that agents can work in reliably:
 
-The goal: a new team should be able to copy this folder, do a find-and-replace on the
-placeholders, fill in the sections, and immediately have a docs-driven codebase that
-AI agents and humans can both navigate.
+- **`init`** — reads the code and writes an evidence-based doc set: a root `AGENTS.md` +
+  `CLAUDE.md`, `docs/AGENTS.md` with the repo's hard rules, numbered guides `00–24`, and
+  per-domain docs for APIs, database, modules, UI and infrastructure. Every sentence traces
+  to a real file. Nothing is invented; unknowns are marked as TODOs for a human.
+- **`update`** — after any code change, updates only the docs that change touched, in the
+  same commit.
+- **`check`** — runs a verifier that catches unmarked placeholders, broken links and cited
+  paths that don't exist (the "invention detector"). Can run in CI on every PR.
 
-## What's in here
+Why: agents write better code when the repo tells them how it's built, where things go and
+which rules not to break. Docs that drift from the code do the opposite, so this skill
+treats keeping them in sync as part of every change.
+
+## Install
+
+```bash
+git clone https://github.com/harshhsahu/ai-template-.git ai-docs
+cd ai-docs
+
+# every repo on your machine (Claude Code personal skill)
+bash scripts/install.sh --user
+
+# or inside one repo, so the whole team gets it — then commit .claude/skills/
+bash scripts/install.sh --repo ../my-product
+
+# ...plus a GitHub Actions check that fails PRs with broken docs
+bash scripts/install.sh --repo ../my-product --ci
+```
+
+Re-run the same command to update an install. Requires Python 3.8+ (standard library only).
+
+## Use
+
+In Claude Code, inside the target repo:
+
+| Say | What happens |
+|---|---|
+| "Make this repo AI-ready" / `/ai-docs init` | Surveys the code, shows you the planned doc list, writes the docs, verifies them, hands you a TODO list |
+| "Update the docs for this change" / `/ai-docs update` | Maps the diff to the docs it affects and edits only those |
+| "Check the docs" / `/ai-docs check` | Runs the verifier and reports what's broken |
+
+Cursor, Codex, Copilot, Gemini CLI and Windsurf read the generated root `AGENTS.md`
+directly, so the docs help them even without the skill installed.
+
+## What it generates
 
 ```
-product-template/
-├── README.md              # you are here
-├── AGENTS.md              # common, product-agnostic agent guardrails (copy to repo root)
-└── docs/
-    ├── AGENTS.md          # how to write & maintain the docs (project-specific rules go here)
-    ├── ARCHITECTURE.md    # high-level system architecture template
-    ├── 00..24-*.md        # the numbered product/engineering guide set (one concern each)
-    ├── api/_TEMPLATE.md            # one file per API domain
-    ├── database/_TEMPLATE.md       # entities + relationships per data store
-    ├── modules/_TEMPLATE.md        # one file per product module/feature area
-    ├── ui/_TEMPLATE.md             # one file per shared/reusable component
-    ├── current-infrastructure/_TEMPLATE.md  # one file per backend system you integrate
-    ├── plans/_TEMPLATE.md          # dated implementation plans
-    └── brainstorms/_TEMPLATE.md    # dated requirement/brainstorm docs
+AGENTS.md                 # short, imperative rules every agent reads first
+CLAUDE.md                 # @AGENTS.md
+docs/
+├── AGENTS.md             # the repo's hard rules (boundaries, ID mapping, approved libs)
+├── ARCHITECTURE.md
+├── 00–24-*.md            # one concern per file, only the ones the code gives evidence for
+├── api/<domain>.md
+├── database/*.md
+├── modules/NN-<name>.md
+├── ui/<component>.md
+├── current-infrastructure/<system>.md
+├── plans/  brainstorms/  # dated working docs
 ```
-
-## How to use it
-
-1. **Copy the folder** into your new product repo as `docs/` and copy `AGENTS.md` to the repo root.
-   ```bash
-   cp -R product-template/docs ../my-new-product/docs
-   cp product-template/AGENTS.md ../my-new-product/AGENTS.md
-   echo "@AGENTS.md" > ../my-new-product/CLAUDE.md
-   ```
-2. **Replace the placeholders.** Every template uses `{{DOUBLE_BRACE}}` tokens and
-   `<!-- fill: ... -->` hints. Search for `{{` and resolve each one. Common tokens:
-   - `{{PRODUCT_NAME}}` — human name of the product
-   - `{{PRODUCT_SLUG}}` — repo/package slug
-   - `{{ONE_LINE_SUMMARY}}` — the elevator pitch
-   - `{{FRAMEWORK}}`, `{{LANGUAGE}}`, `{{STYLING}}`, `{{DB}}` — tech-stack choices
-3. **Delete what you don't need.** Not every product has feature flags or notifications.
-   Delete the file rather than leaving a stub — but renumber consciously.
-4. **Rename `_TEMPLATE.md` files.** In `api/`, `modules/`, `ui/`, etc., copy the
-   `_TEMPLATE.md` once per real thing (`api/orders.md`, `modules/01-checkout.md`) and
-   keep the `_TEMPLATE.md` around as the pattern to clone.
-5. **Fill `docs/AGENTS.md` last.** That file is where product-specific hard rules live
-   (ID mapping, server/client boundaries, degradation policy). It is the single most
-   important file for keeping agents on the rails.
-
-## The doc numbering convention
-
-The `00–24` guides are ordered from **product** → **architecture** → **engineering
-practice**. Keep the numbers stable so links and muscle memory survive across products:
 
 | Range | Concern |
 |---|---|
@@ -62,7 +72,30 @@ practice**. Keep the numbers stable so links and muscle memory survive across pr
 | 15–20 | Operate: environment, analytics, notifications, error handling, testing, deployment |
 | 21–24 | Govern: roadmap, definition of done, git workflow, feature flags |
 
+Docs for concerns the code doesn't have (no analytics SDK → no `16-analytics.md`) are
+skipped on purpose, and product docs that code can't answer (vision, personas, roadmap)
+are left for a human.
+
+## Repo layout
+
+```
+SKILL.md                  # the skill: modes, phases, rules
+references/               # doc catalog, per-language analysis playbook, authoring rules
+scripts/
+├── survey_project.py     # deterministic inventory: stack, deps, routes, models, env vars
+├── scaffold_docs.py      # copies the right templates into the target repo
+├── verify_docs.py        # placeholder / link / invented-path checks
+└── install.sh
+assets/
+├── templates/            # the doc templates, verbatim (AGENTS.md + docs/)
+└── ci/docs-check.yml     # GitHub Actions guard
+```
+
+Prefer the manual route? Copy `assets/templates/docs` to your repo's `docs/`, copy
+`assets/templates/AGENTS.md` to the root, add `CLAUDE.md` containing `@AGENTS.md`, and
+resolve every `{{TOKEN}}`.
+
 ## Golden rule
 
-**The docs are the source of truth.** When code and docs disagree, that's a bug in one
-of them. Every contract change ships with its doc change in the same commit.
+**The docs are the source of truth.** When code and docs disagree, that's a bug in one of
+them. Every contract change ships with its doc change in the same commit.
