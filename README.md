@@ -19,7 +19,7 @@ treats keeping them in sync as part of every change.
 ## Install
 
 ```bash
-git clone https://github.com/harshhsahu/ai-template-.git ai-docs
+git clone https://github.com/harshhsahu/ai-docs.git
 cd ai-docs
 
 # every repo on your machine (Claude Code personal skill)
