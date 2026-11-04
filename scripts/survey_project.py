@@ -29,6 +29,7 @@ VENDOR_DIRS = {
     ".ruff_cache", "target", "vendor", "bin", "obj", ".gradle", ".idea", ".vscode",
     "coverage", ".coverage", "htmlcov", ".tox", ".expo", ".turbo", ".parcel-cache",
     "Pods", ".terraform", "site-packages", ".cache", ".yarn", "bower_components",
+    ".claude",  # agent config + installed skills (incl. this one) are not project code
 }
 
 MANIFESTS = {
@@ -350,7 +351,11 @@ def concern_map(deps):
         for n in names:
             nl = n.lower()
             for dep_lower, dep_orig in lower.items():
-                if dep_lower == nl or dep_lower.endswith("/" + nl) or dep_lower.startswith(nl + "/"):
+                # Exact match, or a path-style module (Go/PHP: github.com/gin-gonic/gin)
+                # ending in the name. Scoped npm packages (@scope/react) are *plugins*
+                # for a library, not the library itself, so they never match by suffix.
+                suffix = (not dep_lower.startswith("@")) and "/" in nl and dep_lower.endswith("/" + nl)
+                if dep_lower == nl or suffix or dep_lower.startswith(nl + "/"):
                     if dep_orig not in found[concern]:
                         found[concern].append(dep_orig)
     return dict(found)
@@ -458,10 +463,33 @@ def main() -> int:
     # manifest's own dependency set.
     ONE_PER_CONCERN = {"framework", "styling", "ui_components", "icons", "charts",
                        "animation", "state", "analytics", "feature_flags"}
+    # A meta-framework and the library it is built on are one choice, not two.
+    COMPANIONS = [{"react", "next"}, {"react", "react-dom"}, {"vue", "nuxt"},
+                  {"svelte", "@sveltejs/kit"}, {"fastapi", "starlette"},
+                  {"solid-js", "solid-start"}, {"@mui/material", "@mui/icons-material"},
+                  {"redux", "@reduxjs/toolkit"}, {"redux", "react-redux"},
+                  {"@reduxjs/toolkit", "react-redux"}]
+
+    def distinct_choices(libs):
+        """Count real choices: libraries joined by a COMPANIONS pair count as one."""
+        groups = [{lib.lower()} for lib in libs]
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(groups)):
+                for j in range(i + 1, len(groups)):
+                    if any(c & groups[i] and c & groups[j] for c in COMPANIONS):
+                        groups[i] |= groups.pop(j)
+                        changed = True
+                        break
+                if changed:
+                    break
+        return len(groups)
+
     conflicts = {}
     for manifest_path, d in deps.items():
         for concern, libs in concern_map(d).items():
-            if concern in ONE_PER_CONCERN and len(libs) > 1:
+            if concern in ONE_PER_CONCERN and len(libs) > 1 and distinct_choices(libs) > 1:
                 conflicts.setdefault(concern, {"libraries": [], "manifests": []})
                 for lib in libs:
                     if lib not in conflicts[concern]["libraries"]:
