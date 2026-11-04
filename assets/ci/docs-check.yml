@@ -41,7 +41,7 @@ jobs:
         run: |
           SCRIPT=.claude/skills/ai-docs/scripts/verify_docs.py
           if [ ! -f "$SCRIPT" ]; then
-            git clone --depth 1 https://github.com/harshhsahu/ai-template-.git /tmp/ai-docs
+            git clone --depth 1 https://github.com/harshhsahu/ai-docs.git /tmp/ai-docs
             SCRIPT=/tmp/ai-docs/scripts/verify_docs.py
           fi
           python3 "$SCRIPT" .
